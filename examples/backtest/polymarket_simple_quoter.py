@@ -57,7 +57,7 @@ MARKET_SLUG = "fed-rate-hike-in-2025"
 
 async def run_backtest(
     market_slug: str,
-    lookback_hours: int = 24,
+    lookback_hours: int = 720,
 ) -> None:
     """
     Run a backtest using historical Polymarket data.
