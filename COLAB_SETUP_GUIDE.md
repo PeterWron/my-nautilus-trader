@@ -1,14 +1,14 @@
-# Google Colab 一键配置 Nautilus Trader 环境指南 (v4 - 终极修复版)
+# Google Colab 一键配置 Nautilus Trader 环境指南 (v5 - 兼容性修复版)
 
-这个版本解决了 `ModuleNotFoundError`，并实现了安装后的自动重启逻辑。
+这个版本解决了 `ResolutionImpossible` 依赖冲突问题，并优化了安装流程。
 
 ## 1. 环境配置代码
 
 请在 Colab 中运行以下代码块。
 
 **运行逻辑说明：**
-1. **第一次运行**：脚本会检测是否安装了 `nautilus_trader`。如果没有，它会执行安装，然后**自动重启 Colab 运行时**（您会看到单元格执行中断，这是正常的）。
-2. **第二次运行**：重启后，请**再次点击运行**同一个单元格。此时脚本会检测到已安装，并自动执行代码修复和仓库克隆逻辑。
+1. **第一次运行**：脚本会安装 `nautilus_trader` 及其核心依赖，然后**自动重启 Colab 运行时**。
+2. **第二次运行**：重启后，请**再次点击运行**同一个单元格，脚本将完成代码修复和仓库克隆。
 
 ```python
 import os
@@ -23,10 +23,10 @@ try:
     print("✅ Nautilus Trader 核心模块已成功加载。")
 except (ImportError, ModuleNotFoundError):
     print("⏳ 正在安装依赖并配置环境，请稍候...")
-    # 锁定版本以确保兼容性
-    !pip install -q "pandas==2.2.2" "nautilus_trader[polymarket,visualization]"
+    # 移除冲突的 [visualization] 额外依赖，改为直接安装核心包
+    # 不再强制锁定 pandas 版本，让 pip 自动协调
+    !pip install -q "nautilus_trader[polymarket]" "plotly" "matplotlib"
     print("\n🔄 安装完成！正在自动重启 Colab 运行时以加载新模块...")
-    # 自动重启 Colab 运行时
     import os
     os.kill(os.getpid(), 9)
 
@@ -99,9 +99,3 @@ patch_nautilus()
 # 运行示例脚本
 !python examples/backtest/polymarket_simple_quoter.py
 ```
-
-## 3. 常见问题
-- **为什么单元格运行到一半停止了？**
-  这是因为脚本在安装完 `nautilus_trader` 后，必须通过杀死当前进程来强制 Colab 重启运行时，这样才能加载新安装的二进制扩展。请在停止后**再次点击运行**即可。
-- **为什么还是提示 ModuleNotFoundError？**
-  请确保您在重启后再次运行了该单元格。如果问题依旧，请尝试点击 Colab 菜单栏的 `Runtime` -> `Disconnect and delete runtime`，然后重新开始。
