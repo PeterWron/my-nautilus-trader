@@ -1,10 +1,14 @@
-# Google Colab 一键配置 Nautilus Trader 环境指南 (v3 - 修复版)
+# Google Colab 一键配置 Nautilus Trader 环境指南 (v4 - 终极修复版)
 
-针对您遇到的 `ModuleNotFoundError` 和 `pandas` 冲突问题，我优化了安装流程。
+这个版本解决了 `ModuleNotFoundError`，并实现了安装后的自动重启逻辑。
 
 ## 1. 环境配置代码
 
-请在 Colab 中运行以下代码块。**注意：安装完成后，Colab 可能会提示您“RESTART SESSION”，请点击该按钮，然后再次运行此单元格（第二次运行会跳过安装直接执行修复逻辑）。**
+请在 Colab 中运行以下代码块。
+
+**运行逻辑说明：**
+1. **第一次运行**：脚本会检测是否安装了 `nautilus_trader`。如果没有，它会执行安装，然后**自动重启 Colab 运行时**（您会看到单元格执行中断，这是正常的）。
+2. **第二次运行**：重启后，请**再次点击运行**同一个单元格。此时脚本会检测到已安装，并自动执行代码修复和仓库克隆逻辑。
 
 ```python
 import os
@@ -12,24 +16,27 @@ import sys
 import shutil
 import re
 
-# --- 1. 安装依赖 (仅在未安装时执行) ---
+# --- 1. 自动安装与重启逻辑 ---
 try:
     import nautilus_trader
-    print("✅ Nautilus Trader 已安装。")
-except ImportError:
-    print("⏳ 正在安装依赖，请稍候...")
-    # 锁定 pandas 版本以兼容 Colab，并安装核心扩展
-    !pip install -U "pandas==2.2.2" "nautilus_trader[polymarket,visualization]"
-    print("⚠️ 安装完成！请点击页面下方的 'RESTART SESSION' 按钮，然后重新运行此单元格。")
-    # 强制停止当前执行，提醒用户重启
-    sys.exit()
+    from nautilus_trader.core.data import Data
+    print("✅ Nautilus Trader 核心模块已成功加载。")
+except (ImportError, ModuleNotFoundError):
+    print("⏳ 正在安装依赖并配置环境，请稍候...")
+    # 锁定版本以确保兼容性
+    !pip install -q "pandas==2.2.2" "nautilus_trader[polymarket,visualization]"
+    print("\n🔄 安装完成！正在自动重启 Colab 运行时以加载新模块...")
+    # 自动重启 Colab 运行时
+    import os
+    os.kill(os.getpid(), 9)
 
-# --- 2. 克隆仓库 ---
+# --- 2. 克隆仓库 (仅在重启后执行) ---
 if not os.path.exists("my-nautilus-trader"):
-    !git clone -b develop https://github.com/PeterWron/my-nautilus-trader.git
+    print("⏳ 正在克隆 GitHub 仓库...")
+    !git clone -q -b develop https://github.com/PeterWron/my-nautilus-trader.git
 %cd my-nautilus-trader
 
-# --- 3. 应用修复逻辑 ---
+# --- 3. 应用 Polymarket 兼容性修复 ---
 def patch_nautilus():
     import nautilus_trader
     base_path = os.path.dirname(nautilus_trader.__file__)
@@ -93,6 +100,8 @@ patch_nautilus()
 !python examples/backtest/polymarket_simple_quoter.py
 ```
 
-## 3. 为什么会出现之前的错误？
-1. **ModuleNotFoundError**: Nautilus Trader 使用 Rust 编写了核心组件。在 Colab 中通过 `pip` 安装后，Python 的当前进程无法立即加载新安装的动态链接库（.so 文件）。必须**重启 Session** 才能让 Python 重新扫描并加载这些模块。
-2. **Pandas 冲突**: Colab 预装了 `pandas 2.2.2`，而新版 Nautilus 默认会尝试安装最新版。锁定版本可以避免环境不稳定的警告。
+## 3. 常见问题
+- **为什么单元格运行到一半停止了？**
+  这是因为脚本在安装完 `nautilus_trader` 后，必须通过杀死当前进程来强制 Colab 重启运行时，这样才能加载新安装的二进制扩展。请在停止后**再次点击运行**即可。
+- **为什么还是提示 ModuleNotFoundError？**
+  请确保您在重启后再次运行了该单元格。如果问题依旧，请尝试点击 Colab 菜单栏的 `Runtime` -> `Disconnect and delete runtime`，然后重新开始。
