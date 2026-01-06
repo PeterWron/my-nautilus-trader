@@ -17,6 +17,13 @@ Provides data loaders for historical Polymarket data from various APIs.
 """
 
 from __future__ import annotations
+from nautilus_trader.core.nautilus_pyo3.network import HttpMethod
+def _build_url(url, params):
+    if not params: return url
+    from urllib.parse import urlencode
+    query = urlencode(params)
+    return f"{url}?{query}" if "?" not in url else f"{url}&{query}"
+
 
 from typing import Any
 
@@ -185,7 +192,11 @@ class PolymarketDataLoader:
 
         # Convert timestamps to milliseconds for the API
         start_time_ms = int(start.timestamp() * 1000)
+        start_time_s = start_time_ms // 1000
+        start_time_s = start_time_ms // 1000
         end_time_ms = int(end.timestamp() * 1000)
+        end_time_s = end_time_ms // 1000
+        end_time_s = end_time_ms // 1000
 
         snapshots = await self.fetch_orderbook_history(
             token_id=self._token_id,
@@ -237,7 +248,11 @@ class PolymarketDataLoader:
 
         # Convert timestamps to milliseconds for the API
         start_time_ms = int(start.timestamp() * 1000)
+        start_time_s = start_time_ms // 1000
+        start_time_s = start_time_ms // 1000
         end_time_ms = int(end.timestamp() * 1000)
+        end_time_s = end_time_ms // 1000
+        end_time_s = end_time_ms // 1000
 
         history = await self.fetch_price_history(
             token_id=self._token_id,
@@ -289,10 +304,7 @@ class PolymarketDataLoader:
             "limit": str(limit),
             "offset": str(offset),
         }
-        response = await client.get(
-            url="https://gamma-api.polymarket.com/markets",
-            params=params,
-        )
+        response = await client.request(HttpMethod.GET, url=_build_url("https://gamma-api.polymarket.com/markets", params,))
 
         if response.status != 200:
             raise RuntimeError(
@@ -330,7 +342,7 @@ class PolymarketDataLoader:
 
         """
         client = http_client or nautilus_pyo3.HttpClient()
-        response = await client.get(
+        response = await client.request(HttpMethod.GET, 
             url=f"https://gamma-api.polymarket.com/markets/slug/{slug}",
         )
 
@@ -413,7 +425,7 @@ class PolymarketDataLoader:
         client = http_client or nautilus_pyo3.HttpClient()
         url = f"https://clob.polymarket.com/markets/{condition_id}"
 
-        response = await client.get(url=url)
+        response = await client.request(HttpMethod.GET, url=url)
 
         if response.status != 200:
             raise RuntimeError(
@@ -454,21 +466,20 @@ class PolymarketDataLoader:
 
         """
         all_snapshots = []
+        start_time_s = start_time_ms // 1000
+        end_time_s = end_time_ms // 1000
         offset = 0
 
         while True:
             params = {
                 "asset_id": token_id,
-                "startTs": start_time_ms,
-                "endTs": end_time_ms,
+                "startTs": start_time_s,
+                "endTs": end_time_s,
                 "limit": limit,
                 "offset": offset,
             }
 
-            response = await self._http_client.get(
-                url="https://clob.polymarket.com/orderbook-history",
-                params=params,
-            )
+            response = await self._http_client.request(HttpMethod.GET, url=_build_url("https://clob.polymarket.com/orderbook-history", params,))
 
             if response.status != 200:
                 raise RuntimeError(
@@ -525,10 +536,7 @@ class PolymarketDataLoader:
             "endTs": str(end_time_s),
             "fidelity": str(fidelity),
         }
-        response = await self._http_client.get(
-            url="https://clob.polymarket.com/prices-history",
-            params=params,
-        )
+        response = await self._http_client.request(HttpMethod.GET, url=_build_url("https://clob.polymarket.com/prices-history", params,))
 
         if response.status != 200:
             raise RuntimeError(
